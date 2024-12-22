@@ -1,0 +1,32 @@
+- name: Install Nginx
+  hosts: all
+  become: yes
+  user: root
+
+  vars_files:
+    - ../env.yml
+
+  tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: latest
+
+    - name: Ensure client_max_body_size is set inside the http block
+      ansible.builtin.blockinfile:
+        path: /etc/nginx/nginx.conf
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+        block: |
+          client_max_body_size {{ NGINX_MAX_BODY_SIZE }};
+        insertafter: '^http\s*{'
+        backup: yes
+
+    - name: Reload Nginx to apply changes
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded

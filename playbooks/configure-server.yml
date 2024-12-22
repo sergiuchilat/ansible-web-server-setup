@@ -1,0 +1,12 @@
+- name: Set the system timezone
+  hosts: all
+  become: yes
+  user: root
+
+  vars_files:
+    - ../env.yml
+
+  tasks:
+    - name: Set timezone to Europe/Chisinau
+      ansible.builtin.command:
+        cmd: timedatectl set-timezone {{ TIMEZONE }}

@@ -1,0 +1,36 @@
+- name: Obtain wildcard SSL certificate with Let's Encrypt
+  hosts: all
+  become: yes
+  user: root
+
+  vars_files:
+    - ../env.yml
+
+  vars:
+    email: "{{ LETS_ENCRYPT_EMAIL }}"
+    domains:
+      - "{{ APP_MAIN_DOMAIN }}"
+      - "*.{{ APP_MAIN_DOMAIN }}"
+
+  tasks:
+    - name: Install Certbot
+      ansible.builtin.apt:
+        name:
+          - certbot
+          - python3-certbot-nginx  # Optional if using Nginx
+        state: present
+        update_cache: yes
+      become: yes
+
+    - name: Obtain wildcard SSL certificate using manual DNS challenge
+      ansible.builtin.command:
+        cmd: >
+          certbot certonly
+          --manual
+          --preferred-challenges=dns
+          --agree-tos
+          --no-eff-email
+          --email "{{ email }}"
+          -d "{{ item }}"
+      loop: "{{ domains }}"
+      become: yes

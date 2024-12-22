@@ -1,0 +1,22 @@
+- name: Create Application User
+  hosts: all
+  become: yes
+  user: root
+
+  vars_files:
+    - ../env.yml
+
+  tasks:
+    - name: Create APP user group
+      group:
+        name: "{{ APP_USERNAME }}"
+        state: present
+
+    - name: Create APP user
+      user:
+        name: "{{ APP_USERNAME }}"
+        group: "{{ APP_USERNAME }}"
+        password: "{{ APP_USER_PASSWORD }}"
+        state: present
+        force: yes
+        createhome: yes

@@ -1,0 +1,73 @@
+- name: Create GitHub User
+  hosts: all
+  become: yes
+  user: root
+
+  vars_files:
+    - ../env.yml
+
+  vars:
+    new_user: github
+    ssh_key_comment: "{{ new_user }}@{{ inventory_hostname }}"  # Comment for SSH key
+    ssh_key_path: "/home/{{ new_user }}/.ssh/id_rsa"  # Path for private key
+
+  tasks:
+    - name: Create 'github' group
+      group:
+        name: github
+        state: present
+
+    - name: Create user 'github'
+      user:
+        name: github
+        group: github
+        state: present
+        force: yes
+        createhome: yes
+
+    - name: Add user 'github' to the group APP_USERNAME
+      ansible.builtin.user:
+        name: github
+        groups: "{{ APP_USERNAME }}"
+        append: yes
+        state: present
+
+    - name: Create .ssh directory
+      ansible.builtin.file:
+        path: "/home/{{ new_user }}/.ssh"
+        state: directory
+        owner: "{{ new_user }}"
+        group: "{{ new_user }}"
+        mode: '0700'
+
+    - name: Generate SSH key pair
+      community.crypto.openssh_keypair:
+        path: "{{ ssh_key_path }}"
+        comment: "{{ ssh_key_comment }}"
+        type: rsa
+        size: 2048
+        state: present
+      register: ssh_keypair_result
+
+    - name: Add public key to authorized_keys
+      ansible.builtin.copy:
+        content: "{{ ssh_keypair_result.public_key }}"
+        dest: "/home/{{ new_user }}/.ssh/authorized_keys"
+        owner: "{{ new_user }}"
+        group: "{{ new_user }}"
+        mode: '0600'
+
+    - name: Set correct permissions for private key (optional, to copy locally)
+      ansible.builtin.file:
+        path: "{{ ssh_key_path }}"
+        owner: "{{ new_user }}"
+        group: "{{ new_user }}"
+        mode: '0600'
+
+    - name: Add GitHub to known_hosts
+      ansible.builtin.shell:
+        cmd: ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
+        creates: /root/.ssh/known_hosts
+      args:
+        executable: /bin/bash
+      register: github_known_hosts
