@@ -8,9 +8,8 @@
 
   vars:
     email: "{{ LETS_ENCRYPT_EMAIL }}"
-    domains:
-      - "{{ APP_MAIN_DOMAIN }}"
-      - "*.{{ APP_MAIN_DOMAIN }}"
+    domain: "{{ APP_MAIN_DOMAIN }}"
+    domains: "-d '{{ APP_MAIN_DOMAIN }}' -d '*.{{ APP_MAIN_DOMAIN }}'"
 
   tasks:
     - name: Install Certbot
@@ -22,15 +21,20 @@
         update_cache: yes
       become: yes
 
-    - name: Obtain wildcard SSL certificate using manual DNS challenge
+    - name: Generate wildcard SSL certificate (manual DNS challenge)
       ansible.builtin.command:
         cmd: >
-          certbot certonly
-          --manual
-          --preferred-challenges=dns
+          certbot certonly --manual
+          --preferred-challenges dns
+          --server https://acme-v02.api.letsencrypt.org/directory
           --agree-tos
-          --no-eff-email
-          --email "{{ email }}"
-          -d "{{ item }}"
-      loop: "{{ domains }}"
-      become: yes
+          -m {{ LETS_ENCRYPT_EMAIL }}
+          -d "*.{{ APP_MAIN_DOMAIN }}"
+          -d {{ APP_MAIN_DOMAIN }}
+        creates: /etc/letsencrypt/live/{{ APP_MAIN_DOMAIN }}/fullchain.pem
+      register: certbot_output
+      ignore_errors: yes
+
+    - name: Display Certbot instructions
+      ansible.builtin.debug:
+        msg: "{{ certbot_output.stdout }}"

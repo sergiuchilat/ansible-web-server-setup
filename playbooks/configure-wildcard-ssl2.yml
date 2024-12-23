@@ -1,0 +1,45 @@
+- name: Secure the site with Letsencrypt
+  hosts: all
+  become: true
+  user: root
+  vars:
+    webroot_path: '/var/www/html'  # the root path of your site
+    certbot_source_directory: /usr/local/certbot-src
+    certbot_executable_path: "{{ certbot_source_directory }}/venv/bin/certbot"
+    domain: 'ansible.bursamuncii.com'
+    email: 'chilatsergiu@gmail.com'
+  tasks:
+    - name: Install required packages for certbot
+      ansible.builtin.apt:
+        name:
+          - python3-venv
+          - gcc
+          - libaugeas0
+          - libssl-dev
+          - libffi-dev
+          - ca-certificates
+          - openssl
+          - git
+          - python3-venv
+
+    - name: Clone the certbot source directory
+      ansible.builtin.git:
+        depth: 1
+        repo: https://github.com/certbot/certbot
+        dest: "{{ certbot_source_directory }}"
+        update: true
+
+    - name: Create certbot in virtual environment
+      ansible.builtin.command: python3 tools/venv.py
+      args:
+        chdir: "{{ certbot_source_directory }}"
+
+    - name: Generate the SSL certificate
+      ansible.builtin.command: "{{ certbot_executable_path }} --nginx -d {{ domain }} --non-interactive --agree-tos --email {{ email }}"
+
+    - name: Set up automatic renewal
+      ansible.builtin.cron:
+        name: "Certbot automatic renewal"
+        job: "{{ certbot_executable_path }} renew --quiet"
+        minute: "11"
+        hour: "11"
